@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Maya – Flirty Hinglish Chat</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{
+  margin:0;
+  background:#0b0f18;
+  color:#fff;
+  font-family:Inter, sans-serif;
+  display:flex;
+  justify-content:center;
+  padding:20px;
+}
+.wrap{
+  width:100%;
+  max-width:850px;
+  background:#111729;
+  padding:20px;
+  border-radius:12px;
+  box-shadow:0 0 20px #0004;
+}
+.chat{
+  height:65vh;
+  overflow-y:auto;
+  background:#0c1625;
+  padding:15px;
+  border-radius:10px;
+}
+.msg{
+  padding:10px 14px;
+  margin:8px 0;
+  border-radius:10px;
+  max-width:80%;
+  line-height:1.4;
+}
+.user{
+  background:#1b2738;
+  margin-left:auto;
+}
+.bot{
+  background:#0f1a2c;
+  border-left:3px solid #ff5e8f;
+}
+.input-area{
+  display:flex;
+  margin-top:12px;
+  gap:10px;
+}
+input{
+  flex:1;
+  padding:12px;
+  border:none;
+  border-radius:8px;
+  background:#0f1a2c;
+  color:#fff;
+}
+button{
+  padding:12px 18px;
+  border:none;
+  border-radius:8px;
+  background:#ff5e8f;
+  color:#fff;
+  font-weight:600;
+  cursor:pointer;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h2 style="margin-top:0;">Maya 💞 – Flirty Hinglish Girl</h2>
+  <div id="chat" class="chat"></div>
+
+  <div class="input-area">
+    <input id="msg" placeholder="Type anything…">
+    <button onclick="sendMsg()">Send</button>
+  </div>
+</div>
+
+<script>
+function addMsg(text, who){
+  const div = document.createElement("div");
+  div.className = "msg " + (who === "user" ? "user" : "bot");
+  div.innerText = text;
+  document.getElementById("chat").append(div);
+  document.getElementById("chat").scrollTop = 999999;
+}
+
+async function sendMsg(){
+  const txt = document.getElementById("msg").value.trim();
+  if(!txt) return;
+
+  addMsg(txt, "user");
+  document.getElementById("msg").value = "";
+
+  addMsg("Maya is typing…", "bot-temp");
+
+  const res = await fetch("/api/chat", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({message:txt})
+  });
+
+  document.querySelector(".bot-temp")?.remove();
+
+  const j = await res.json();
+  if(j.reply){
+    addMsg(j.reply, "bot");
+  } else {
+    addMsg("Error: " + (j.error||"Unknown"), "bot");
+  }
+}
+</script>
+
+<script>
+addMsg("Hii… kya kar rahe ho? 😌✨", "bot");
+</script>
+</body>
+</html>
