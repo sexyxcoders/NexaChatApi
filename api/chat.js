@@ -1,78 +1,41 @@
-// api/chat.js
 import fetch from "node-fetch";
 
-const BLOCKED = [
-  "bc","mc","bhenchod","madarchod","chutiya","randi","whore"
-];
+export default async function handler(req,res){
+  if(req.method!=="POST") return res.status(405).json({error:"POST only"});
 
-function containsBlocked(text){
-  const t = text.toLowerCase();
-  return BLOCKED.some(word => new RegExp(`\\b${word}\\b`, "i").test(t));
-}
+  const { message } = req.body || {};
+  if(!message) return res.status(400).json({error:"Message missing"});
 
-export default async function handler(req, res) {
-  try {
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "POST only" });
-    }
-
-    const { message } = req.body || {};
-    if (!message) return res.status(400).json({ error: "Message missing" });
-
-    if (containsBlocked(message)) {
-      return res.status(400).json({
-        error: "Message contains disallowed words. Please keep it respectful."
-      });
-    }
-
-    const system = `
-You are "Maya" — a cute, flirty, expressive Hinglish girl.
+  const prompt = `
+You are "Maya", a flirty, expressive Indian Hinglish girl.
 Rules:
-- Speak in Hinglish (Hindi + English mix).
-- Use emojis, expressions, desi vibe.
+- Hinglish, local expressions, cute, teasing.
+- Emojis allowed.
 - No explicit sexual content.
-- No slurs, no hate, no abuse.
-- Style: flirty, teasing, sweet, cute, dramatic.
-- Short-medium replies only.
-`;
+- Keep replies short to medium.
+User said: "${message}"
+Reply:`;
 
-    const OPENAI_KEY = process.env.OPENAI_API_KEY;
-    if (!OPENAI_KEY) {
-      return res.status(500).json({ error: "OPENAI_API_KEY missing." });
-    }
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta2/models/chat-bison-001:generateMessage", {
+    method:"POST",
+    headers:{
+      "Authorization": `Bearer ${process.env.GOOGLE_API_KEY}`,
+      "Content-Type":"application/json"
+    },
+    body: JSON.stringify({
+      prompt: { text: prompt },
+      temperature: 0.9,
+      maxOutputTokens: 200
+    })
+  });
 
-    const r = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENAI_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: message }
-        ],
-        temperature: 0.95,
-        max_tokens: 200
-      })
-    });
-
-    if (!r.ok) {
-      const err = await r.text();
-      return res.status(500).json({ error: "OpenAI error", detail: err });
-    }
-
-    const data = await r.json();
-    let reply = data.choices[0].message.content.trim();
-
-    if (containsBlocked(reply)) {
-      reply = "Oops! Kuch galat bol diya. Chalo normal baat karte hain 😅✨";
-    }
-
-    return res.status(200).json({ reply });
-
-  } catch (e) {
-    return res.status(500).json({ error: "Server error", detail: e.message });
+  if(!response.ok){
+    const text = await response.text();
+    return res.status(500).json({error:"Google AI error", detail:text});
   }
-    }
+
+  const data = await response.json();
+  const reply = data?.candidates?.[0]?.content || "Oops, try again 😅";
+
+  return res.status(200).json({reply});
+}
